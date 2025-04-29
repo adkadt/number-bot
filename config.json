@@ -1,0 +1,22 @@
+{
+    "prefix_settings" : {
+        "prefix" : "null",
+        "use_space" : false
+    },
+
+    "user_roles": [],
+    "modules" : ["roles","admin","profile"],
+    "profile_questions": [],
+    "fonts" : {
+        "normal" : "NotoSansCJK-Regular.ttc",
+        "bold" : "NotoSansCJK-Bold.ttc"
+    },
+    "permissions": "YOUR_BOT_PERMISSIONS_HERE",
+    "application_id": "YOUR_APPLICATION_ID_HERE",
+    "sync_commands_globally": false,
+
+    "owner_ids": [
+        282118931559481344,
+        776117473032142848
+    ]
+}
