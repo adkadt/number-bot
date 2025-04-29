@@ -1,0 +1,11 @@
+*.csv
+*.log
+*.pyc
+*.png
+*.key
+*.sh
+other
+templates
+data
+.idea
+.venv
