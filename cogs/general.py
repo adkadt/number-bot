@@ -16,27 +16,33 @@ class General(commands.Cog, name="general"):
         await ctx.reply('On the fun work train') # fix this
 
 
+    # starts number of day manually
     @commands.hybrid_command(name='start-number')
-    async def startNumber(self, ctx: Context, test=None):
-        await ctx.reply("number time")
-        await pickANumber.startRND(channel=ctx.channel, test=test)
-
-
-    @commands.hybrid_command(name='wins')
-    async def wins(self, ctx: Context, member: discord.Member=None):
-        if member is None:
-            member = ctx.author
-
-        try:
-            numWins = pickANumber.getCorrect(member=member)
-        except:
-            await ctx.reply(f"<@{member.id}> is not a guesser")
-            return
-        
-        if member.id == ctx.author.id:
-            await ctx.reply(f"You have guessed the number {numWins} times!")
+    async def startNumber(self, ctx: Context, hours: int, minutes: int, real=None):
+        await ctx.reply("Manual Number Mode")
+        if real == 'yes':
+            real = True
         else:
-            await ctx.reply(f"<@{member.id}> has guessed the number {numWins} times!")
+            real = False
+        # await pickANumber.startRND(channel=ctx.channel, test=test)
+        await pickANumber.startNumberPoll(channel=ctx.channel, hours=hours, minutes=minutes, real=real)
+        
+
+    # @commands.hybrid_command(name='wins')
+    # async def wins(self, ctx: Context, member: discord.Member=None):
+    #     if member is None:
+    #         member = ctx.author
+
+    #     try:
+    #         numWins = pickANumber.getCorrect(member=member)
+    #     except:
+    #         await ctx.reply(f"<@{member.id}> is not a guesser")
+    #         return
+        
+    #     if member.id == ctx.author.id:
+    #         await ctx.reply(f"You have guessed the number {numWins} times!")
+    #     else:
+    #         await ctx.reply(f"<@{member.id}> has guessed the number {numWins} times!")
 
 
     @commands.hybrid_command(name='win-graph')
@@ -73,11 +79,12 @@ class General(commands.Cog, name="general"):
         await msg.edit(embed=embed)
 
 
-    @commands.hybrid_command(name='fix-number')
-    async def fixNumber(self, ctx: Context, msg_id):
-        await ctx.reply("fixing time!")
+    # runs number if number never got chosen, but poll was sent?
+    # @commands.hybrid_command(name='fix-number')
+    # async def fixNumber(self, ctx: Context, msg_id):
+    #     await ctx.reply("fixing time!")
 
-        await pickANumber.tempFix(channel=ctx.channel, msg_id=int(msg_id))
+    #     await pickANumber.tempFix(channel=ctx.channel, msg_id=int(msg_id))
 
 
 async def setup(bot):

@@ -54,16 +54,16 @@ async def on_message(ctx):
     await bot.process_commands(ctx)
 
 
-# start number of the day everyday at noon EST
-number_hour = 12
+# start number of the day everyday at 6am EST
+number_hour = 6
 number_minute = 0
 est_tz = zoneinfo.ZoneInfo("America/New_York")
 loop_time = datetime.time(hour=number_hour, minute=number_minute, tzinfo=est_tz)
 @tasks.loop(time=loop_time)
 async def start_number():
     # get channel for number
-    channel = await bot.fetch_channel(NUMBER_CHANNEL_ID) # future: change based on server
-    await pickANumber.startRND(channel=channel)
+    channel = await bot.fetch_channel(NUMBER_CHANNEL_ID) # TODO change based on server
+    await pickANumber.startNumberPoll(channel=channel, hours=6, minutes=0, real=True)
 
 
 # reloads commands
@@ -96,4 +96,4 @@ asyncio.run(load_cogs())
 with open(f"{os.path.dirname(__file__)}/token.key") as f:
     TOKEN = f.read()
 bot.run(TOKEN)
-# future: get from sys var
+# TODO get from sys var

@@ -9,8 +9,9 @@ import json
 import pandas
 import matplotlib.pyplot as plt
 
-from datetime import timedelta
-import datetime
+from datetime import timedelta, date, datetime
+import zoneinfo
+# import datetime
 # from datetime import datetime
 import pytz
 
@@ -115,7 +116,7 @@ async def startRND(channel: discord.channel, test=None):
     await channel.send(f"<@&1329614215962689643> Here we go for today's number")
     await asyncio.sleep(2)
 
-    today = datetime.date.today()
+    today = date.today()
     day_name = today.strftime('%A, %B %d, %Y')
     await channel.send(f"Today is {day_name}")
     await asyncio.sleep(2)
@@ -153,13 +154,72 @@ async def startRND(channel: discord.channel, test=None):
     makeWinChart()
 
 
-async def tempFix(channel: discord.channel, msg_id: int):
-    pollMsg = await channel.fetch_message(msg_id)    
+async def checkIfAllVotes(channel, pollMsg, numVotes: int):
+    try:
+        pollMsgFetched = await channel.fetch_message(pollMsg.id)
+    except:
+        await channel.send(f"Error: PAN161 (ADAM FIX IT!)")
+
+    if pollMsgFetched.poll.total_votes >= numVotes:
+        return True
+    return False
+
+
+async def startNumberPoll(channel: discord.channel, hours: int, minutes: int, real: bool):
+    # prepare timings
+    est_tz = zoneinfo.ZoneInfo("America/New_York")
+    start_time = datetime.now(est_tz)
+    pollEndTime = start_time + timedelta(hours=hours, minutes=minutes)
+
+    # set up poll
+    poll_duration = hours
+    if poll_duration < 1:
+        poll_duration = 1
+    numberPoll = Poll(question=f"Pick a Number (Poll only lasts {hours + minutes/60} Hours)", duration=timedelta(hours=poll_duration, minutes=1))
+    for i in range(10):
+        numberPoll = Poll.add_answer(self=numberPoll ,text=str(i+1))
+
+    # send poll
+    pollMsg = await channel.send(content = "<@&1329614215962689643>", poll=numberPoll)
+    
+    allVotes = False
+
+    # run 1 hour reminder
+    if hours > 1:
+        reminderTime = pollEndTime - timedelta(hours=1)
+        while reminderTime > datetime.now(est_tz):
+            await asyncio.sleep(5)
+            allVotes = await checkIfAllVotes(channel=channel, pollMsg=pollMsg, numVotes=1)
+            if allVotes:
+                break
+        await channel.send(content = "<@&1329614215962689643> 1 Hour Warning")
+        
+    # run 10 minute reminder
+    if hours > 0 or minutes > 10:
+        reminderTime = pollEndTime - timedelta(minutes=10)
+        while reminderTime > datetime.now(est_tz):
+            await asyncio.sleep(5)
+            allVotes = await checkIfAllVotes(channel=channel, pollMsg=pollMsg, numVotes=1)
+            if allVotes:
+                break
+        await channel.send(content = "<@&1329614215962689643> 10 Minute Warning")
+
+    while pollEndTime > datetime.now(est_tz):
+        await asyncio.sleep(5)
+        allVotes = await checkIfAllVotes(channel=channel, pollMsg=pollMsg, numVotes=1)
+        if allVotes:
+            print(allVotes)
+            break
+
+    if allVotes:
+        await channel.send(f"Everyone has chosen their Number")
+
+    await pollMsg.end_poll()
 
     await channel.send(f"<@&1329614215962689643> Here we go for today's number")
     await asyncio.sleep(2)
 
-    today = datetime.date.today()
+    today = date.today()
     day_name = today.strftime('%A, %B %d, %Y')
     await channel.send(f"Today is {day_name}")
     await asyncio.sleep(2)
@@ -182,20 +242,68 @@ async def tempFix(channel: discord.channel, msg_id: int):
     await channel.send(f"Today's number is...")
     await asyncio.sleep(4)
 
+    # pull random number
     number = random.randint(1, 10)
-    # number = 7
     number_words = inflect.engine().number_to_words(number).capitalize().ljust(8, ' ')
     await channel.send(f"||{number_words}||!")
 
-    voters = [voter async for voter in pollMsg.poll.get_answer(number).voters()]
+    pollMsgFetched = await channel.fetch_message(pollMsg.id)
+    voters = [voter async for voter in pollMsgFetched.poll.get_answer(number).voters()]
 
-    serverJson = openJson("info")
-    for voter in voters:
-        serverJson['users'][str(voter.id)]['wins'] += 1
-    writeJson("info", serverJson)
-    await savePollState(number, pollMsg)
+    # save data
+    if real:
+        serverJson = openJson("info")
+        for voter in voters:
+            serverJson['users'][str(voter.id)]['wins'] += 1
+        writeJson("info", serverJson)
+        await savePollState(number, pollMsgFetched)
 
-    makeWinChart()
+        makeWinChart()
+
+# run number using msg id
+# async def tempFix(channel: discord.channel, msg_id: int):
+#     pollMsg = await channel.fetch_message(msg_id)    
+
+#     await channel.send(f"<@&1329614215962689643> Here we go for today's number")
+#     await asyncio.sleep(2)
+
+#     today = datetime.date.today()
+#     day_name = today.strftime('%A, %B %d, %Y')
+#     await channel.send(f"Today is {day_name}")
+#     await asyncio.sleep(2)
+
+#     await channel.send(f"Ten Balls")
+#     await asyncio.sleep(2)
+
+#     await channel.send(f"Each ball has a number")
+#     await asyncio.sleep(2)
+
+#     await channel.send(f"Numbers one through ten")
+#     await asyncio.sleep(2)
+
+#     await channel.send(f"Swirl the numbers")
+#     await asyncio.sleep(3)  
+
+#     await channel.send(f"Pick a number")
+#     await asyncio.sleep(2)
+
+#     await channel.send(f"Today's number is...")
+#     await asyncio.sleep(4)
+
+#     number = random.randint(1, 10)
+#     # number = 7
+#     number_words = inflect.engine().number_to_words(number).capitalize().ljust(8, ' ')
+#     await channel.send(f"||{number_words}||!")
+
+#     voters = [voter async for voter in pollMsg.poll.get_answer(number).voters()]
+
+#     serverJson = openJson("info")
+#     for voter in voters:
+#         serverJson['users'][str(voter.id)]['wins'] += 1
+#     writeJson("info", serverJson)
+#     await savePollState(number, pollMsg)
+
+#     makeWinChart()
 
 
 def getCorrect(member: discord.Member):

@@ -105,7 +105,9 @@ class Statcoms(commands.Cog, name="statcoms"):
         await msg.edit(embed=embed)
 
         # Get next stat
+        print('enter')
         mostGuessed = memberData.getMostGuessedNumber()
+        print('passed')
         embed.set_field_at(index=1, name='Retrieved Most Guessed Number :white_check_mark:', value='', inline=False)
         await msg.edit(embed=embed)
 
@@ -117,6 +119,9 @@ class Statcoms(commands.Cog, name="statcoms"):
 
         await msg.edit(embed=embed)
 
+
+    # Server Stats
+    ## Longest Streak
 
 async def setup(bot):
     await bot.add_cog(Statcoms(bot))

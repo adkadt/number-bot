@@ -145,20 +145,30 @@ class MemberStats():
                     guessed[i] += 1
                     if i+1 == day[3]:
                         numWins[i] += 1
- 
+
         numOfMostGuessed = np.max(guessed)        
         mostGuessedLst = np.where(guessed==numOfMostGuessed)[0]
         mostGuessed = mostGuessedLst + 1
         if len(mostGuessed) == 1:
             mostGuessed = mostGuessed[0]
 
+        winRateStr = ''
         winRateOfMostGuessed = []
         for num in mostGuessedLst:
             winRateOfMostGuessed.append((numWins[num]/numOfMostGuessed)* 100)
-        if len(winRateOfMostGuessed) == 1:
-            winRateOfMostGuessed = winRateOfMostGuessed[0]
+        for i, winRate in enumerate(winRateOfMostGuessed):
+            if i > 0:
+                winRateStr += ', '
+            winRateStr += f"{winRate:.0f}%"
 
-        return f"Number: {mostGuessed}\nWin Rate: {winRateOfMostGuessed:.0f}%\nTimes Used: {numOfMostGuessed:.0f}"
+        # if len(winRateOfMostGuessed) == 1:
+        #     winRateOfMostGuessed = winRateOfMostGuessed[0]
+
+        returnMsg = f"Number: {mostGuessed}\n"
+        returnMsg += f"Win Rate: {winRateStr}\n"
+        returnMsg += f"Times Used: {numOfMostGuessed:.0f}"
+
+        return returnMsg
 
 
     
