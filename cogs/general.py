@@ -4,7 +4,7 @@ from discord.ext.commands import Context
 
 from helpers import pickANumber
 
-BACKEND_CHANNEL = 1349998544139849798
+BACKEND_CHANNEL = 1186399351073935384
 
 class General(commands.Cog, name="general"):
     def __init__(self, bot):
@@ -18,13 +18,8 @@ class General(commands.Cog, name="general"):
 
     # starts number of day manually
     @commands.hybrid_command(name='start-number')
-    async def startNumber(self, ctx: Context, hours: int, minutes: int, real=None):
+    async def startNumber(self, ctx: Context, hours: int, minutes: int, real: bool):
         await ctx.reply("Manual Number Mode")
-        if real == 'yes':
-            real = True
-        else:
-            real = False
-        # await pickANumber.startRND(channel=ctx.channel, test=test)
         await pickANumber.startNumberPoll(channel=ctx.channel, hours=hours, minutes=minutes, real=real)
         
 
@@ -80,11 +75,11 @@ class General(commands.Cog, name="general"):
 
 
     # runs number if number never got chosen, but poll was sent?
-    # @commands.hybrid_command(name='fix-number')
-    # async def fixNumber(self, ctx: Context, msg_id):
-    #     await ctx.reply("fixing time!")
-
-    #     await pickANumber.tempFix(channel=ctx.channel, msg_id=int(msg_id))
+    @commands.hybrid_command(name='fix-number')
+    async def fixNumber(self, ctx: Context, msg_id, real: bool):
+        await ctx.reply("Adam broke something!")
+        pollMsg = await ctx.channel.fetch_message(msg_id)
+        await pickANumber.rollNumber(channel=ctx.channel, pollMsg=pollMsg, real=real)
 
 
 async def setup(bot):
