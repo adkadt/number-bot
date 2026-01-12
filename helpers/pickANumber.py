@@ -1,5 +1,6 @@
 import asyncio
 import discord
+# from discord import Poll
 
 import inflect
 import random
@@ -8,33 +9,30 @@ import os
 import json
 import pandas
 import matplotlib.pyplot as plt
+import requests
 
 from datetime import timedelta, date, datetime
 import zoneinfo
-# import datetime
-# from datetime import datetime
 import pytz
 
-from discord import Poll
-
-import requests
+from helpers.discordJson import DiscordJson
 
 
-def openJson(fileName):
-    serverInfoFileName = f"{os.path.realpath(os.path.dirname(__file__))}/../data/{fileName}.json"
-    with open(serverInfoFileName, 'r') as serverInfoFile:
-        serverJson = json.load(serverInfoFile)
-    return serverJson
+# def openJson(fileName):
+#     serverInfoFileName = f"{os.path.realpath(os.path.dirname(__file__))}/../data/{fileName}.json"
+#     with open(serverInfoFileName, 'r') as serverInfoFile:
+#         serverJson = json.load(serverInfoFile)
+#     return serverJson
 
-def writeJson(fileName, serverJson):
-    serverInfoFileName = f"{os.path.realpath(os.path.dirname(__file__))}/../data/{fileName}.json"
-    with open(serverInfoFileName, 'w') as serverInfoFile:
-        json.dump(serverJson, serverInfoFile, sort_keys=True, indent=4)
+# def writeJson(fileName, serverJson):
+#     serverInfoFileName = f"{os.path.realpath(os.path.dirname(__file__))}/../data/{fileName}.json"
+#     with open(serverInfoFileName, 'w') as serverInfoFile:
+#         json.dump(serverJson, serverInfoFile, sort_keys=True, indent=4)
 
 
 def makeWinChart():
     fileName = f"{os.path.realpath(os.path.dirname(__file__))}/../data/winGraph.png"
-    serverJson = openJson("info")
+    serverJson = DiscordJson.open("info")
     dispNames = []
     wins = []
     high = 0
@@ -61,7 +59,7 @@ def makeWinChart():
 
 async def savePollState(number: int, message: discord.Message):
     fileName = "numbers"
-    jsonData = openJson(fileName)
+    jsonData = DiscordJson.open(fileName)
     est = pytz.timezone('US/Eastern')
 
     messageDate = message.created_at.astimezone(est)
@@ -82,8 +80,9 @@ async def savePollState(number: int, message: discord.Message):
         voters = [voter async for voter in message.poll.get_answer(i).voters()]
         for voter in voters:
             jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)][str(i)].append(str(voter.id))
-    
-    writeJson(fileName, jsonData)
+            
+    jsonData = DiscordJson.sort_json_numerically(jsonData)
+    DiscordJson.write(fileName, jsonData)
 
 
 async def checkIfAllVotes(channel, pollMsg, numVotes: int):
@@ -92,7 +91,7 @@ async def checkIfAllVotes(channel, pollMsg, numVotes: int):
         if pollMsgFetched.poll.total_votes >= numVotes:
             return True
     except Exception as e:
-        await channel.send(f"Error: PAN161 (ADAM FIX IT!)")
+        await channel.send(f"Error: PAN95")
         with open("error_log.txt", "w") as f:  
             f.write(str(e))
     return False
@@ -144,12 +143,12 @@ async def rollNumber(channel: discord.channel, pollMsg: discord.Message, real: b
 
     # save data
     if real:
-        serverJson = openJson("info")
+        serverJson = DiscordJson.open("info")
         for voter in voters:
             serverJson['users'][str(voter.id)]['wins'] += 1
             payload = {"user":  str(voter.id)}
             requests.post("http://localhost:8000/message", json=payload)
-        writeJson("info", serverJson)
+        DiscordJson.write("info", serverJson)
         await savePollState(number, pollMsgFetched)
         makeWinChart()
 
@@ -164,9 +163,9 @@ async def startNumberPoll(channel: discord.channel, hours: int, minutes: int, re
     poll_duration = hours
     if minutes > 0:
         poll_duration += 1
-    numberPoll = Poll(question=f"Pick a Number (Poll only lasts {hours + minutes/60} Hours)", duration=timedelta(hours=poll_duration, minutes=1))
+    numberPoll = discord.Poll(question=f"Pick a Number (Poll only lasts {hours + minutes/60} Hours)", duration=timedelta(hours=poll_duration, minutes=1))
     for i in range(10):
-        numberPoll = Poll.add_answer(self=numberPoll ,text=str(i+1))
+        numberPoll = discord.Poll.add_answer(self=numberPoll ,text=str(i+1))
 
     # send poll
     pollMsg = await channel.send(content = "<@&1329614215962689643>", poll=numberPoll)
@@ -209,14 +208,14 @@ async def startNumberPoll(channel: discord.channel, hours: int, minutes: int, re
 
 
 def getCorrect(member: discord.Member):
-    serverJson = openJson("info")
+    serverJson = DiscordJson.open("info")
     return serverJson['users'][str(member.id)]['wins'] 
 
 
 def adjustWins(member: discord.Member, change):
-    serverJson = openJson("info")
+    serverJson = DiscordJson.open("info")
     serverJson['users'][str(member.id)]['wins'] += change
-    writeJson("info" ,serverJson)
+    DiscordJson.write("info" ,serverJson)
     makeWinChart()
 
 
