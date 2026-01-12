@@ -4,15 +4,31 @@ from discord.ext.commands import Context
 
 from helpers import stats
 
+from typing import Literal
+
+year_options = stats.getYearOptions()
+
 class Statcoms(commands.Cog, name="statcoms"):
     def __init__(self, bot):
         self.bot = bot
 
 
+    @commands.hybrid_command(name='win-graph')
+    async def winGraph(self, ctx:Context, year: Literal[*year_options] = year_options[-1]):
+        if not year.isdigit():
+            year = None
+            
+        fileName = stats.makeWinChart(year)
+        with open(fileName, 'rb') as f:
+            plot = discord.File(f)
+        await ctx.reply(file=plot)
+
+
     @commands.hybrid_command(name='number-stats')
-    async def NumberStats(self, ctx: Context):
+    async def NumberStats(self, ctx: Context, year: Literal[*year_options] = year_options[-1]): # type: ignore
+
         embed = discord.Embed(
-            title="Number Stats",
+            title=f"{year} Number Stats",
             description=""
         )
         # add stats loading
@@ -32,11 +48,14 @@ class Statcoms(commands.Cog, name="statcoms"):
             inline=False
         )
 
+        if not year.isdigit():
+            year = None
+
         # initial reply
         msg: discord.Message = await ctx.reply(embed=embed)
 
         # get first stat
-        lastNumberData = stats.NumberStats.getLastNumberData()
+        lastNumberData = stats.NumberStats.getLastNumberData(year)
         
         # Change field
         embed.set_field_at(
@@ -48,7 +67,7 @@ class Statcoms(commands.Cog, name="statcoms"):
         await msg.edit(embed=embed)
 
         # Get next stat
-        timesPickedData = stats.NumberStats.getTimesPicked()
+        timesPickedData = stats.NumberStats.getTimesPicked(year)
 
         embed.set_field_at(
             index=1,
@@ -88,8 +107,8 @@ class Statcoms(commands.Cog, name="statcoms"):
         
 
     @commands.hybrid_command(name='personal-stats')
-    async def MemberStats(self, ctx: Context):
-        embed = discord.Embed(title="Personal Stats")
+    async def MemberStats(self, ctx: Context, year: Literal[*year_options] = year_options[-1]): # type: ignore
+        embed = discord.Embed(title=f"{year} Personal Stats")
         embed.add_field(name='Retrieving Last Win :arrows_counterclockwise:', value='', inline=False)
         embed.add_field(name='Retrieving Favorite Number :arrows_counterclockwise:', value='', inline=False)
         embed.add_field(name='Retrieving Win Rate :arrows_counterclockwise:', value='', inline=False)
@@ -97,7 +116,10 @@ class Statcoms(commands.Cog, name="statcoms"):
         embed.add_field(name='Retrieving Best Number :arrows_counterclockwise:', value='', inline=False)
         msg: discord.Message = await ctx.reply(embed=embed)
 
-        memberData = stats.MemberStats(ctx.author)
+        if not year.isdigit():
+            year = None
+
+        memberData = stats.MemberStats(ctx.author, year)
 
         # get first stat
         lastWin = memberData.getLastWin()

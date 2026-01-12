@@ -21,15 +21,6 @@ class General(commands.Cog, name="general"):
     async def startNumber(self, ctx: Context, hours: int, minutes: int, real: bool):
         await ctx.reply("Manual Number Mode")
         await pickANumber.startNumberPoll(channel=ctx.channel, hours=hours, minutes=minutes, real=real)
-        
-
-    @commands.hybrid_command(name='win-graph')
-    async def winGraph(self, ctx:Context):
-        fileName = pickANumber.makeWinChart()
-        with open(fileName, 'rb') as f:
-            plot = discord.File(f)
-        await ctx.reply(file=plot)
-
 
     @commands.hybrid_command(name="random-check")
     async def randomCheck(self, ctx: Context, sample_size: int):

@@ -17,46 +17,6 @@ import pytz
 
 from helpers.discordJson import DiscordJson
 
-
-# def openJson(fileName):
-#     serverInfoFileName = f"{os.path.realpath(os.path.dirname(__file__))}/../data/{fileName}.json"
-#     with open(serverInfoFileName, 'r') as serverInfoFile:
-#         serverJson = json.load(serverInfoFile)
-#     return serverJson
-
-# def writeJson(fileName, serverJson):
-#     serverInfoFileName = f"{os.path.realpath(os.path.dirname(__file__))}/../data/{fileName}.json"
-#     with open(serverInfoFileName, 'w') as serverInfoFile:
-#         json.dump(serverJson, serverInfoFile, sort_keys=True, indent=4)
-
-
-def makeWinChart():
-    fileName = f"{os.path.realpath(os.path.dirname(__file__))}/../data/winGraph.png"
-    serverJson = DiscordJson.open("info")
-    dispNames = []
-    wins = []
-    high = 0
-
-    for user in serverJson['users']:
-        sub = serverJson['users'][user]
-        dispNames.append(sub['display_name'])
-        wins.append(sub['wins'])
-        if sub['wins'] > high:
-            high = sub['wins']
-
-    plt.xticks(rotation=15)
-    plt.bar(dispNames, wins)
-    plt.title('Correct Number Guesses')
-
-    for i in range(len(dispNames)):
-        plt.text(i, wins[i] + high*0.01, wins[i])
-
-    plt.savefig(fileName)
-    plt.cla()
-
-    return fileName
-
-
 async def savePollState(number: int, message: discord.Message):
     fileName = "numbers"
     jsonData = DiscordJson.open(fileName)
@@ -150,7 +110,6 @@ async def rollNumber(channel: discord.channel, pollMsg: discord.Message, real: b
             requests.post("http://localhost:8000/message", json=payload)
         DiscordJson.write("info", serverJson)
         await savePollState(number, pollMsgFetched)
-        makeWinChart()
 
 
 async def startNumberPoll(channel: discord.channel, hours: int, minutes: int, real: bool):
@@ -216,7 +175,6 @@ def adjustWins(member: discord.Member, change):
     serverJson = DiscordJson.open("info")
     serverJson['users'][str(member.id)]['wins'] += change
     DiscordJson.write("info" ,serverJson)
-    makeWinChart()
 
 
 def makeRandomCheckGraph(num):
