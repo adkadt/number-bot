@@ -51,9 +51,9 @@ async def checkIfAllVotes(channel, pollMsg, numVotes: int):
         if pollMsgFetched.poll.total_votes >= numVotes:
             return True
     except Exception as e:
-        await channel.send(f"Error: PAN95")
-        with open("error_log.txt", "w") as f:  
-            f.write(str(e))
+        # await channel.send(f"Error: PAN95")
+        with open("error_log.txt", "a") as f:  
+            f.write(f"{e}\n")
     return False
 
 
