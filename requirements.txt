@@ -26,3 +26,4 @@ typeguard==4.4.2
 typing_extensions==4.13.1
 tzdata==2025.2
 yarl==1.19.0
+requests
