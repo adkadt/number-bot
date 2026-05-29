@@ -15,6 +15,7 @@ class Statcoms(commands.Cog, name="statcoms"):
 
     @commands.hybrid_command(name='win-graph')
     async def winGraph(self, ctx:Context, year: Literal[*year_options] = year_options[-1]):
+        await ctx.defer()
         if not year.isdigit():
             year = None
             
@@ -127,9 +128,7 @@ class Statcoms(commands.Cog, name="statcoms"):
         await msg.edit(embed=embed)
 
         # Get next stat
-        print('enter')
         mostGuessed = memberData.getMostGuessedNumber()
-        print('passed')
         embed.set_field_at(index=1, name='Retrieved Most Guessed Number :white_check_mark:', value='', inline=False)
         await msg.edit(embed=embed)
 

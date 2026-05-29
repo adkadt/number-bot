@@ -4,13 +4,14 @@ import os
 
 class DiscordJson():
 
+    @staticmethod
     def open(fileName):
         serverInfoFileName = f"{os.path.realpath(os.path.dirname(__file__))}/../data/{fileName}.json"
         with open(serverInfoFileName, 'r') as serverInfoFile:
             jsonData = json.load(serverInfoFile)
         return jsonData
 
-
+    @staticmethod
     def write(fileName, jsonData):
         serverInfoFileName = f"{os.path.realpath(os.path.dirname(__file__))}/../data/{fileName}.json"
         with open(serverInfoFileName, 'w') as serverInfoFile:
