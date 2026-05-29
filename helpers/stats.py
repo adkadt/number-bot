@@ -248,3 +248,29 @@ class MemberStats():
         returnMsg += f"Times Used: {numOfMostGuessed:.0f}"
 
         return returnMsg
+
+    def getWinRate(self):
+        days = []
+        for y, year_data in self.numberData.items():
+            for m, month_data in year_data.items():
+                for d, day_data in month_data.items():
+                    days.append((day_data['number'], day_data))
+
+        total_guesses = 0
+        total_wins = 0
+
+        for winning_num, day_data in days:
+            guessed_today = False
+            for i in range(1, 11):
+                if str(self.member.id) in day_data.get(str(i), []):
+                    guessed_today = True
+                    if i == winning_num:
+                        total_wins += 1
+            if guessed_today:
+                total_guesses += 1
+
+        if total_guesses == 0:
+            return "0 Wins / 0 Guesses (0%)"
+
+        win_rate = (total_wins / total_guesses) * 100
+        return f"{total_wins} Wins / {total_guesses} Guesses ({win_rate:.1f}%)"

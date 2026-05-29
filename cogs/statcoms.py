@@ -108,8 +108,11 @@ class Statcoms(commands.Cog, name="statcoms"):
         
 
     @commands.hybrid_command(name='personal-stats')
-    async def MemberStats(self, ctx: Context, year: Literal[*year_options] = year_options[-1]): # type: ignore
-        embed = discord.Embed(title=f"{year} Personal Stats")
+    async def MemberStats(self, ctx: Context, member: discord.Member = None, year: Literal[*year_options] = year_options[-1]): # type: ignore
+        if member is None:
+            member = ctx.author
+            
+        embed = discord.Embed(title=f"{year} Personal Stats for {member.display_name}")
         embed.add_field(name='Retrieving Last Win :arrows_counterclockwise:', value='', inline=False)
         embed.add_field(name='Retrieving Favorite Number :arrows_counterclockwise:', value='', inline=False)
         embed.add_field(name='Retrieving Win Rate :arrows_counterclockwise:', value='', inline=False)
@@ -120,7 +123,7 @@ class Statcoms(commands.Cog, name="statcoms"):
         if not year.isdigit():
             year = None
 
-        memberData = stats.MemberStats(ctx.author, year)
+        memberData = stats.MemberStats(member, year)
 
         # get first stat
         lastWin = memberData.getLastWin()
@@ -132,11 +135,17 @@ class Statcoms(commands.Cog, name="statcoms"):
         embed.set_field_at(index=1, name='Retrieved Most Guessed Number :white_check_mark:', value='', inline=False)
         await msg.edit(embed=embed)
 
+        # Get win rate
+        winRate = memberData.getWinRate()
+        embed.set_field_at(index=2, name='Retrieved Win Rate :white_check_mark:', value='', inline=False)
+        await msg.edit(embed=embed)
+
         # prepare to post full stats
         embed.clear_fields()
 
         embed.add_field(name='Last Win', value=lastWin, inline=False)
         embed.add_field(name='Favorite Number', value=mostGuessed, inline=False)
+        embed.add_field(name='Overall Win Rate', value=winRate, inline=False)
 
         await msg.edit(embed=embed)
 
