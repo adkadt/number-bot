@@ -17,44 +17,39 @@ import pytz
 
 from helpers.discordJson import DiscordJson
 
-async def savePollState(number: int, message: discord.Message):
-    fileName = "numbers"
-    jsonData = DiscordJson.open(fileName)
-    est = pytz.timezone('US/Eastern')
+NUMBER_VOTING_USERS = 5
 
-    messageDate = message.created_at.astimezone(est)
+async def startNumberPoll(channel: discord.channel, hours: int, minutes: int, real: bool):
+    # prepare timings
+    est_tz = zoneinfo.ZoneInfo("America/New_York")
+    start_time = datetime.now(est_tz)
+    pollEndTime = start_time + timedelta(hours=hours, minutes=minutes)
 
-    if str(messageDate.year) not in jsonData.keys():
-        jsonData[str(messageDate.year)] = {}
-    if str(messageDate.month) not in jsonData[str(messageDate.year)].keys():
-        jsonData[str(messageDate.year)][str(messageDate.month)] = {}
-    if "{:02}".format(messageDate.day) not in jsonData[str(messageDate.year)][str(messageDate.month)].keys():
-        jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)] = {}
+    # set up poll
+    poll_duration = hours
+    if minutes > 0:
+        poll_duration += 1
+    numberPoll = discord.Poll(question=f"Pick a Number (Poll only lasts {hours + minutes/60:.2f} Hours)", duration=timedelta(hours=poll_duration, minutes=1))
+    for i in range(10):
+        numberPoll = discord.Poll.add_answer(self=numberPoll ,text=str(i+1))
 
-    jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)]['message_id'] = message.id
-    jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)]['total_votes'] = message.poll.total_votes
-    jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)]['number'] = number
-
-    for i in range(1, 11):
-        jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)][str(i)] = []
-        voters = [voter async for voter in message.poll.get_answer(i).voters()]
-        for voter in voters:
-            jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)][str(i)].append(str(voter.id))
-            
-    jsonData = DiscordJson.sort_json_numerically(jsonData)
-    DiscordJson.write(fileName, jsonData)
-
-
-async def checkIfAllVotes(channel, pollMsg, numVotes: int):
-    try:
-        pollMsgFetched = await channel.fetch_message(pollMsg.id)
-        if pollMsgFetched.poll.total_votes >= numVotes:
-            return True
-    except Exception as e:
-        # await channel.send(f"Error: PAN95")
-        with open("error_log.txt", "a") as f:  
-            f.write(f"{e}\n")
-    return False
+    # send poll
+    pollMsg = await channel.send(content = "<@&1329614215962689643>", poll=numberPoll)
+    
+    # Save poll state to file for background monitoring
+    poll_data = {
+        "message_id": pollMsg.id,
+        "channel_id": channel.id,
+        "end_time": pollEndTime.timestamp(),
+        "warn_1h": False,
+        "warn_10m": False,
+        "real": real
+    }
+    if hours * 60 + minutes <= 10:
+        poll_data["warn_10m"] = True
+    if hours * 60 + minutes <= 60:
+        poll_data["warn_1h"] = True
+    DiscordJson.write("active_poll", poll_data)
 
 
 # run number using msg id
@@ -103,78 +98,110 @@ async def rollNumber(channel: discord.channel, pollMsg: discord.Message, real: b
 
     # save data
     if real:
-        serverJson = DiscordJson.open("info")
         for voter in voters:
-            serverJson['users'][str(voter.id)]['wins'] += 1
-            payload = {"user":  str(voter.id)}
-            requests.post("http://localhost:8000/message", json=payload)
-        DiscordJson.write("info", serverJson)
+            try:
+                payload = {"user":  str(voter.id)}
+                requests.post("http://localhost:8000/message", json=payload)
+            except:
+                print("[PAN_ERROR] Failed to send win notification to Sarver")
         await savePollState(number, pollMsgFetched)
 
 
-async def startNumberPoll(channel: discord.channel, hours: int, minutes: int, real: bool):
-    # prepare timings
+async def monitorActivePoll(bot):
+    try:
+        poll_data = DiscordJson.open("active_poll")
+    except Exception:
+        return # No active poll saved or file does not exist
+
+    if not poll_data or "message_id" not in poll_data:
+        return
+        
+    channel = bot.get_channel(poll_data["channel_id"])
+    if not channel:
+        print("[PAN_ERROR] Channel not found")
+        return
+        
+    try:
+        pollMsg = await channel.fetch_message(poll_data["message_id"])
+    except discord.NotFound:
+        DiscordJson.write("active_poll", {}) # Message deleted, clear state
+        print("[PAN_ERROR] Poll message not found")
+        return
+        
     est_tz = zoneinfo.ZoneInfo("America/New_York")
-    start_time = datetime.now(est_tz)
-    pollEndTime = start_time + timedelta(hours=hours, minutes=minutes)
-
-    # set up poll
-    poll_duration = hours
-    if minutes > 0:
-        poll_duration += 1
-    numberPoll = discord.Poll(question=f"Pick a Number (Poll only lasts {hours + minutes/60} Hours)", duration=timedelta(hours=poll_duration, minutes=1))
-    for i in range(10):
-        numberPoll = discord.Poll.add_answer(self=numberPoll ,text=str(i+1))
-
-    # send poll
-    pollMsg = await channel.send(content = "<@&1329614215962689643>", poll=numberPoll)
+    now = datetime.now(est_tz).timestamp()
+    time_left = poll_data["end_time"] - now
     
-    allVotes = False
-
-    # run 1 hour reminder
-    if hours > 1:
-        reminderTime = pollEndTime - timedelta(hours=1)
-        while reminderTime > datetime.now(est_tz):
-            await asyncio.sleep(5)
-            allVotes = await checkIfAllVotes(channel=channel, pollMsg=pollMsg, numVotes=6)
-            if allVotes:
-                break
-        if not allVotes:
-            await channel.send(content = "<@&1329614215962689643> 1 Hour Warning")
+    allVotes = pollMsg.poll.total_votes >= NUMBER_VOTING_USERS
         
-    # run 10 minute reminder
-    if hours > 0 or minutes > 10:
-        reminderTime = pollEndTime - timedelta(minutes=10)
-        while reminderTime > datetime.now(est_tz):
-            await asyncio.sleep(5)
-            allVotes = await checkIfAllVotes(channel=channel, pollMsg=pollMsg, numVotes=6)
-            if allVotes:
-                break
-        if not allVotes:
-            await channel.send(content = "<@&1329614215962689643> 10 Minute Warning")
-
-    while pollEndTime > datetime.now(est_tz):
-        print(f"Now: {datetime.now(est_tz)}, End: {pollEndTime}")
-        await asyncio.sleep(5)
-        allVotes = await checkIfAllVotes(channel=channel, pollMsg=pollMsg, numVotes=6)
+    if allVotes or time_left <= 0:
         if allVotes:
-            break
-    
-    if allVotes:
-        await channel.send(f"Everyone has chosen their Number")
+            await channel.send("Everyone has chosen their Number")
+        await rollNumber(channel=channel, pollMsg=pollMsg, real=poll_data["real"])
+        DiscordJson.write("active_poll", {}) # Clear active poll and exit
+        return
         
-    await rollNumber(channel=channel, pollMsg=pollMsg, real=real)
+    if time_left <= 3600 and not poll_data.get("warn_1h"):
+        await channel.send(content="<@&1329614215962689643> 1 Hour Warning")
+        poll_data["warn_1h"] = True
+        DiscordJson.write("active_poll", poll_data)
+        
+    elif time_left <= 600 and not poll_data.get("warn_10m"):
+        await channel.send(content="<@&1329614215962689643> 10 Minute Warning")
+        poll_data["warn_10m"] = True
+        DiscordJson.write("active_poll", poll_data)
+
+
+async def savePollState(number: int, message: discord.Message):
+    fileName = "numbers"
+    jsonData = DiscordJson.open(fileName)
+    est = pytz.timezone('US/Eastern')
+
+    messageDate = message.created_at.astimezone(est)
+
+    if str(messageDate.year) not in jsonData.keys():
+        jsonData[str(messageDate.year)] = {}
+    if str(messageDate.month) not in jsonData[str(messageDate.year)].keys():
+        jsonData[str(messageDate.year)][str(messageDate.month)] = {}
+    if "{:02}".format(messageDate.day) not in jsonData[str(messageDate.year)][str(messageDate.month)].keys():
+        jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)] = {}
+
+    jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)]['message_id'] = message.id
+    jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)]['total_votes'] = message.poll.total_votes
+    jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)]['number'] = number
+
+    for i in range(1, 11):
+        jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)][str(i)] = []
+        voters = [voter async for voter in message.poll.get_answer(i).voters()]
+        for voter in voters:
+            jsonData[str(messageDate.year)][str(messageDate.month)]["{:02}".format(messageDate.day)][str(i)].append(str(voter.id))
+            
+    jsonData = DiscordJson.sort_json_numerically(jsonData)
+    DiscordJson.write(fileName, jsonData)
+
+
+async def checkIfAllVotes(channel, pollMsg, numVotes: int):
+    try:
+        pollMsgFetched = await channel.fetch_message(pollMsg.id)
+        if pollMsgFetched.poll.total_votes >= numVotes:
+            return True
+    except Exception as e:
+        # await channel.send(f"Error: PAN95")
+        with open("error_log.txt", "a") as f:  
+            f.write(f"{e}\n")
+    return False
 
 
 def getCorrect(member: discord.Member):
-    serverJson = DiscordJson.open("info")
-    return serverJson['users'][str(member.id)]['wins'] 
-
-
-def adjustWins(member: discord.Member, change):
-    serverJson = DiscordJson.open("info")
-    serverJson['users'][str(member.id)]['wins'] += change
-    DiscordJson.write("info" ,serverJson)
+    numberData = DiscordJson.open("numbers")
+    wins = 0
+    for y, year_data in numberData.items():
+        for m, month_data in year_data.items():
+            for d, day_data in month_data.items():
+                winning_number = str(day_data["number"])
+                if str(member.id) in day_data.get(winning_number, []):
+                    wins += 1
+    return wins
 
 
 def makeRandomCheckGraph(num):
@@ -192,3 +219,31 @@ def makeRandomCheckGraph(num):
     plt.cla()
 
     return fileName
+
+
+def modifyDayWin(member: discord.Member, year: int, month: int, day: int, add: bool) -> bool:
+    numbers_data = DiscordJson.open("numbers")
+    y, m, d = str(year), str(month), "{:02d}".format(day)
+    
+    if y in numbers_data and m in numbers_data[y] and d in numbers_data[y][m]:
+        day_data = numbers_data[y][m][d]
+        winning_number = str(day_data["number"])
+        
+        if add: 
+            if str(member.id) not in day_data[winning_number]:
+                day_data[winning_number].append(str(member.id))
+                DiscordJson.write("numbers", numbers_data)
+                
+                try:
+                    payload = {"user":  str(member.id)}
+                    requests.post("http://localhost:8000/message", json=payload)
+                except:
+                    print("[PAN_ERROR] Failed to send win notification to Sarver")
+                return True
+        else:
+            if str(member.id) in day_data[winning_number]:
+                day_data[winning_number].remove(str(member.id))
+                DiscordJson.write("numbers", numbers_data)
+                
+                return True
+    return False

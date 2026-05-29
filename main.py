@@ -38,6 +38,7 @@ async def on_ready():
     print('ALIVE!')
     # start daily number loop
     start_number.start()
+    poll_monitor.start()
 
 
 @bot.event
@@ -64,6 +65,11 @@ async def start_number():
     # get channel for number
     channel = await bot.fetch_channel(NUMBER_CHANNEL_ID) # TODO change based on server
     await pickANumber.startNumberPoll(channel=channel, hours=6, minutes=0, real=True)
+
+
+@tasks.loop(minutes=1)
+async def poll_monitor():
+    await pickANumber.monitorActivePoll(bot)
 
 
 # reloads commands

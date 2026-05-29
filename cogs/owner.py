@@ -77,16 +77,25 @@ class Owner(commands.Cog, name="owner"):
     #     await state.edit(content="Done")
                 
 
-    @commands.hybrid_command(name='adjust-wins')
+    @commands.hybrid_command(name='add-win')
     @checks.is_owner()
-    async def adjustWins(self, ctx: Context, member: discord.Member=None, change: int=None):
-        if member is None:
-            member = ctx.author
-        if int is None:
-            await ctx.reply("Must specify a change")
-        
-        pickANumber.adjustWins(member, change)
-        await ctx.reply(f"Added {change} to <@{member.id}>'s correct number guesses!")
+    async def addWins(self, ctx: Context, member: discord.Member, year: int, month: int, day: int):
+        await ctx.defer()
+        success = pickANumber.modifyDayWin(member, year, month, day, True)
+        if not success:
+            await ctx.reply(f"Failed to modify win for {member.display_name}")
+        await ctx.reply(f"Added a win to {member.display_name}'s on {month}/{day}/{year}!")
+
+
+    @commands.hybrid_command(name='remove-win')
+    @checks.is_owner()
+    async def removeWins(self, ctx: Context, member: discord.Member, year: int, month: int, day: int):
+        await ctx.defer()
+        success = pickANumber.modifyDayWin(member, year, month, day, False)
+        if not success:
+            await ctx.reply(f"Failed to modify win for {member.display_name}")
+        await ctx.reply(f"Removed win from {member.display_name}'s on {month}/{day}/{year}!")
+
 
 
     # @commands.hybrid_command(name='suggestions')
