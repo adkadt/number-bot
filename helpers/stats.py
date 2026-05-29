@@ -67,10 +67,15 @@ def makeWinChart(year=None):
         for m, month_data in year_data.items():
             for d, day_data in month_data.items():
                 winning_num = day_data["number"]
-                winning_members = day_data[str(winning_num)]
+                winning_members = day_data.get(str(winning_num), [])
                 for member in winning_members:
-                    member_index = user_ids.index(member)
-                    wins[member_index] += 1
+                    if member in user_ids:
+                        member_index = user_ids.index(member)
+                        wins[member_index] += 1
+                    else:
+                        user_ids.append(member)
+                        dispNames.append(f"Unknown ({member})")
+                        wins.append(1)
 
     for win in wins:
         if win > high:
@@ -192,7 +197,7 @@ class MemberStats():
         for y, year_data in self.numberData.items():
             for m, month_data in year_data.items():
                 for d, day_data in month_data.items():
-                    days.append((y,m,d,day_data['number'],day_data[str(object=day_data['number'])]))
+                    days.append((y,m,d,day_data['number'],day_data.get(str(day_data['number']), [])))
 
         lastWin = 'None during this period'
 
@@ -220,7 +225,10 @@ class MemberStats():
                     if i+1 == day[3]:
                         numWins[i] += 1
 
-        numOfMostGuessed = np.max(guessed)        
+        numOfMostGuessed = np.max(guessed)
+        if numOfMostGuessed == 0:
+            return "No Guesses Recorded"
+
         mostGuessedLst = np.where(guessed==numOfMostGuessed)[0]
         mostGuessed = mostGuessedLst + 1
         if len(mostGuessed) == 1:
